@@ -3,6 +3,7 @@ import { exec } from "child_process";
 import path from "path";
 import fs from "fs";
 import { promisify } from "util";
+import os from "os";
 
 const execPromise = promisify(exec);
 
@@ -14,17 +15,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
     }
 
-    // Temporary directory for downloads
-    const tempDir = path.join(process.cwd(), "temp_downloads");
+    // Temporary directory for downloads (compatible with Netlify/Vercel)
+    const tempDir = os.tmpdir();
     if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir);
+      fs.mkdirSync(tempDir, { recursive: true });
     }
 
     const fileName = `audio-${Date.now()}.mp3`;
     const outputPath = path.join(tempDir, fileName);
 
-    // Resolve ffmpeg path manually because next.js mangles the import
-    const ffmpegPath = path.join(process.cwd(), "node_modules", "ffmpeg-static", "ffmpeg.exe");
+    // Resolve ffmpeg path manually (handling both Windows and Linux)
+    const isWindows = os.platform() === "win32";
+    const ffmpegPath = path.join(process.cwd(), "node_modules", "ffmpeg-static", isWindows ? "ffmpeg.exe" : "ffmpeg");
 
     // yt-dlp command to extract audio as mp3
     // We use --force-overwrites to ensure we don't get stuck

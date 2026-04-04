@@ -3,6 +3,7 @@ import { exec } from "child_process";
 import path from "path";
 import fs from "fs";
 import { promisify } from "util";
+import os from "os";
 
 // Since Next.js requires the route runtime to be Node.js to use child_process and fs
 // We don't need to specify runtime edge
@@ -23,10 +24,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "File must be an MP4 video" }, { status: 400 });
     }
 
-    // Temporary directory for uploads
-    const tempDir = path.join(process.cwd(), "temp_downloads");
+    // Temporary directory for uploads (compatible with Netlify/Vercel)
+    const tempDir = os.tmpdir();
     if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir);
+      fs.mkdirSync(tempDir, { recursive: true });
     }
 
     const uniqueId = Date.now();
@@ -38,8 +39,9 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(arrayBuffer);
     fs.writeFileSync(inputPath, buffer);
 
-    // Resolve ffmpeg path manually
-    const ffmpegPath = path.join(process.cwd(), "node_modules", "ffmpeg-static", "ffmpeg.exe");
+    // Resolve ffmpeg path manually (handling both Windows and Linux)
+    const isWindows = os.platform() === "win32";
+    const ffmpegPath = path.join(process.cwd(), "node_modules", "ffmpeg-static", isWindows ? "ffmpeg.exe" : "ffmpeg");
 
     if (!fs.existsSync(ffmpegPath)) {
       // Cleanup
